@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <ctype.h>
 #include <math.h>
 #include <string.h>
 #include <stdatomic.h>
@@ -22,11 +23,15 @@ typedef struct {
 
 
 
-//uint8_t target[] = {'P', 'I', 'S', 'A', ' ', 'M', 'E', };
-char target[] = "PISA MERDA";
+//char target[] = "PISA MERDA";
+
+#define TGTS 5
+#define MAX_L 20
+char targets[TGTS][MAX_L] = {"PISA MERDA", "LIVORNO MERDA", "CIAO", "FABRIZIOEICALVI", "ORTURANOLABS"};
+
 
 // STATO CONDIVISO
-Uint64Array * positions = NULL;        // posizioni in cifre HEX
+Uint64Array positions[TGTS][MAX_L];        // posizioni in cifre HEX
 pthread_mutex_t positions_update_lock;        // per evitare che i thread scrivano insieme
 _Atomic uint64_t global_index = 0;      // posizione in cifre HEX
 
@@ -70,7 +75,7 @@ uint8_t get_8_bits(uint8_t *, size_t);
 
 
 // appende alla fine dell'array la posizione
-void * append_position(uint64_t bit_position, Uint64Array * arr){
+void * append_position(uint64_t bit_position, Uint64Array * arr, int tgt, int b, int id){
 
     pthread_mutex_lock(&positions_update_lock);
 
@@ -81,12 +86,19 @@ void * append_position(uint64_t bit_position, Uint64Array * arr){
 
 
     // PRINT OUTPUT
-    for (int i = 0; i < sizeof(target) / sizeof(target[0]); ++i){
+    /*for (int i = 0; i < sizeof(target) / sizeof(target[0]); ++i){
         printf("%li ", positions[i].size);
     }
     printf("(%li)", bit_position);
-    printf("\n");
+    printf("\n");*/
 
+
+    // print output
+    printf("%2.2i: ", id);
+    for ( int i = 0; i < b; ++i ){
+        printf("%c", targets[tgt][i]);
+    }
+    printf(" @ %li\n", bit_position);
 
 
     pthread_mutex_unlock(&positions_update_lock);
@@ -108,27 +120,34 @@ void * worker_routine(void * arg) {
         // questa funzione riempie hex_chunk dei valori di pi in big endian (sia byte che nibble)
         get_bbp_chunk(my_pos, hex_chunk);
 
-        // Dentro worker_routine, subito dopo get_bbp_chunk(my_pos, hex_chunk);
-        // if (my_pos == 0) {
-        //     printf("DEBUG CHUNK 0: ");
-        //     for(int k=0; k<16; k++) printf("%02X ", hex_chunk[k]);
-        //     printf("\n");
-        // }
-
         // cerchiamo la corrispondenza dei primi due byte di target all'interno di tutto hex_chunk
         // facciamo un for su ogni offset possibile per tutto hex_chunk, cioè il numero di bit (l'ultima cifra è già nel chunk successivo)
         // in pratica prendiamo tutte le finestre possibili (CHUNK*SEGMENTO-OVERLAP)*8 meno l'ultima finestra
         for(int i = 0; i < (CHUNK_SIZE*SEGMENT_SIZE-OVERLAP)*8-1; i++){
 
-            for ( int b = 0; b < sizeof(target) / sizeof(target[0]); ++b){
+            for ( int tgt = 0; tgt < TGTS; ++tgt ){  // questo for scorre le varie parole target
+                /*int b = 0;
+                for (; targets[tgt][b] != '\0';){  // questo for scorre uno alla volte i byte del target
 
-                if (get_8_bits(hex_chunk, i+8*b) == target[b]){
+                    if (get_8_bits(hex_chunk, i+8*b) == targets[tgt][b] || get_8_bits(hex_chunk, i+8*b) == targets[tgt][b]+' ' ){
 
-                    if (b != 0) append_position(4*my_pos + i, &positions[b]);
+                        ++b;
 
-                } else {
-                    break;
+                    } else {
+                        break;
+                    }
+
+
+
+                }*/
+
+                int b = 0;
+                while(targets[tgt][b] != '\0' && ( get_8_bits(hex_chunk, i+8*b) == targets[tgt][b] || get_8_bits(hex_chunk, i+8*b) == tolower(targets[tgt][b]) )){
+                    b++;
                 }
+
+
+                if (b >= 2) append_position(4*my_pos + i, &positions[tgt][b], tgt, b, id); // consideriamo solo quando vengono trovate almeno 2 lettere
 
             }
 
@@ -148,98 +167,14 @@ void * worker_routine(void * arg) {
 
 
 
-
-
-
-
-
-// int main(){
-//
-//
-//
-//     int id = 0;
-//
-//     worker_routine(&id);
-//
-//     // printf("%X\n", ((uint8_t *)target)[0] );
-//     // printf("%X\n", ((uint8_t *)target)[1] );
-//     // printf("%X\n", ((uint16_t *)target)[0] );
-//
-//
-//
-//     return 0;
-// }
-
-
-
-
-
-// // convrte il valore double in stringa esadecimale
-// char * extract_hex_string(double fraction, int num_digits) {
-//     const char * hex_chars = "0123456789ABCDEF";
-//     char * result = (char *)malloc(num_digits * sizeof(char));
-//
-//     for (int i = 0; i < num_digits; ++i) {
-//         fraction *= 16.0;
-//         int digit = (int)fraction;
-//
-//         // per sicurezza
-//         if (digit >= 16) digit = 15;
-//         if (digit < 0) digit = 0;
-//
-//         result[i] = hex_chars[digit];
-//         fraction -= digit;
-//     }
-//     return result;
-// }
-
-// // Calcola le cifre di Pi a partire dalla posizione n
-// void compute_bbp_segment(uint64_t n, char *buffer) {
-//     // [: Inserire qui la logica BBP]
-//     // Deve riempire 'buffer' con (CHUNK_SIZE + OVERLAP) cifre esadecimali
-//     snprintf(buffer, CHUNK_SIZE + OVERLAP + 1, "0123456789ABCDEF");
-// }
-//
-// // --- LOGICA DEL WORKER ---
-//
-// void* worker_routine(void* arg) {
-//     int id = *(int*)arg;
-//     char hex_buffer[CHUNK_SIZE + OVERLAP + 1];
-//
-//     while (true) {
-//         // 1. SCHEDULING: Prendi il prossimo blocco di lavoro
-//         // fetch_add garantisce che ogni thread lavori su un'area unica
-//         uint64_t my_pos = atomic_fetch_add(&global_index, CHUNK_SIZE);        //     const char * hex_chars = "0123456789ABCDEF";
-
-//
-//         // 2. CALCOLO: Estrai le cifre (Pesante, avviene in parallelo)
-//         compute_bbp_segment(my_pos, hex_buffer);
-//
-//         // 3. ANALISI: Cerca la corrispondenza (Veloce)
-//         if (strstr(hex_buffer, TARGET)) {
-//
-//             // 4. REPORT: Sezione critica solo per l'output
-//             pthread_mutex_lock(&output_lock);
-//             printf("[Thread %d] Match trovato alla posizione %llu!\n", id, my_pos);
-//             pthread_mutex_unlock(&output_lock);
-//         }
-//
-//         // Freno di emergenza per il test (opzionale)
-//         if (my_pos > 1000000) break;
-//     }
-//     return NULL;
-// }
-//
-//
-// // --- MAIN (ORCHESTRATORE) ---
-//
 int main() {
 
     // alloca spazio per i contatori delle occorrenze
-    positions = (Uint64Array *)malloc( sizeof(target) / sizeof(target[0]) * sizeof(Uint64Array) );
-    for (int i = 0; i < sizeof(target) / sizeof(target[0]); ++i){
-        positions[i].data = NULL;
-        positions[i].size = 0;
+    for ( int i = 0; i < TGTS; ++i ){
+        for ( int j = 0; j < MAX_L; ++j ){
+            positions[i][j].data = NULL;
+            positions[i][j].size = 0;
+        }
     }
 
     pthread_t workers[NUM_THREADS];
@@ -249,11 +184,12 @@ int main() {
 
     printf("This algorithm searches for a specific sequence of bits in\n  the base-2 representation of pi.\n\n");
     printf("Since we can encode words and letters using UTF-8, we can\n  therefore search for them within the infinite digits of pi!\n\n");
-    printf("Searching for PISA MERDA on %d threads...\n\n", NUM_THREADS);
+
+    /*printf("Searching for PISA MERDA on %d threads...\n\n", NUM_THREADS);
     for (int i = 0; i < sizeof(target) / sizeof(target[0]); ++i){
         printf("%c ", target[i]);
     }
-    printf("\n");
+    printf("\n");*/
 
     // Lancio dei thread
     for (int i = 0; i < NUM_THREADS; i++) {
@@ -269,37 +205,6 @@ int main() {
     pthread_mutex_destroy(&positions_update_lock);
     return 0;
 }
-
-// int main() {
-//     uint64_t start_position = 0;
-//     uint64_t block_size = 8;   // numero di cifre per blocco (sicuro per double)
-//     int iterations = 10000;     // numero di blocchi
-//
-//
-//     if (start_position == 0) {
-//         printf("3.\n");
-//     }
-//
-//
-//     for (int i = 0; i < iterations; ++i) {
-//         uint64_t current_pos = start_position + (i * block_size);
-//
-//         // calcoliamo la frazione a partire dalla posizione corrente
-//         double fraction = get_pi_fraction(current_pos);
-//
-//         // estraiamo le cifre dalla frazione
-//         char * block = extract_hex_string(fraction, block_size);
-//
-//         // printf("%s\n", block);
-//
-//         if(i % 10 == 0) printf("%i\n", (i/10));
-//     }
-//
-//     printf("\nDone!\n");
-//     return 0;
-// }
-
-
 
 
 
