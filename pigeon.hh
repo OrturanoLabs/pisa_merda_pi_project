@@ -39,7 +39,7 @@ pigeon::iterator pigeon::end() const noexcept {
 }
 
 pigeon::iterator::iterator() noexcept
-    : q{10}, r{-30}, t{3}, k{2}, n{0}, l{5}, p{3}, digits{0} {
+    : q{2}, r{-6}, t{3}, k{2}, n{0}, l{5}, p{3}, digits{0} {
 }
 
 pigeon::iterator::iterator(std::size_t digits) noexcept
@@ -58,9 +58,9 @@ pigeon::iterator &pigeon::iterator::operator++() noexcept {
   while (true) {
     if (this->q << 2 < this->n * this->t + this->t - this->r) {
       this->p = n.get_si();
-      this->q *= 10;
+      this->q *= 2;
       this->r -= this->n * this->t;
-      this->r *= 10;
+      this->r *= 2;
       this->n = (3 * this->q + this->r) / this->t;
       ++this->digits;
       break;
