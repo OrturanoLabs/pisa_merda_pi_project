@@ -26,6 +26,7 @@ typedef struct {
 
 char targets[MAX_TARGETS][MAX_L];
 int num_targets = 0;
+FILE *matches_file;
 
 Uint64Array positions[MAX_TARGETS][MAX_L];
 pthread_mutex_t positions_update_lock;
@@ -122,6 +123,10 @@ void * append_position(uint64_t bit_position, Uint64Array * arr, int tgt, int b,
     printf("%2.2i: ", id);
     for ( int i = 0; i < b; ++i ) printf("%c", targets[tgt][i]);
     printf(" @ %llu\n", bit_position);
+    if (matches_file && targets[tgt][b] == '\0') {
+        fprintf(matches_file, "%s @ %llu\n", targets[tgt], bit_position);
+        fflush(matches_file);
+    }
     pthread_mutex_unlock(&positions_update_lock);
     return NULL;
 }
@@ -165,6 +170,8 @@ int main(int argc, char *argv[]) {
         }
     }
     load_targets("targets.txt");
+    matches_file = fopen("matches.txt", "w");
+    if (!matches_file) { perror("Impossibile aprire matches.txt"); exit(1); }
     global_index = load_checkpoint();
     for ( int i = 0; i < num_targets; ++i ){
         for ( int j = 0; j < MAX_L; ++j ){
@@ -181,5 +188,6 @@ int main(int argc, char *argv[]) {
     }
     for (int i = 0; i < NUM_THREADS; i++) pthread_join(workers[i], NULL);
     pthread_mutex_destroy(&positions_update_lock);
+    fclose(matches_file);
     return 0;
 }

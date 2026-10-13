@@ -7,6 +7,7 @@ Sfrutta l'algoritmo **BBP (Bailey–Borwein–Plouffe)** per calcolare le cifre 
 ## Funzionalità
 - **Calcolo Parallelo:** Implementazione multi-thread (`pthread`) per massimizzare le performance.
 - **Ricerca Dinamica:** Legge le stringhe da ricercare da un file esterno `targets.txt`.
+- **Logging delle corrispondenze:** Le corrispondenze complete vengono salvate in tempo reale nel file `matches.txt`.
 - **Ripresa Stato (Checkpointing):** Salva automaticamente il progresso in `checkpoint.txt` per poter riprendere la ricerca in seguito.
 - **Ricerca Case-Insensitive:** Trova le stringhe indipendentemente da maiuscole e minuscole.
 
