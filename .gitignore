@@ -1,0 +1,15 @@
+# Executables
+pisa_merda_pi_project
+*.exe
+*.out
+
+# Object files
+*.o
+
+# State/Checkpoint files
+checkpoint.txt
+
+# Editor/OS temporary files
+.DS_Store
+*.swp
+*~
